@@ -1,5 +1,5 @@
 ---
-framework_version: 1.4.8
+framework_version: 1.4.10
 ---
 
 # CV Templates and Tailoring Guide
@@ -21,6 +21,13 @@ cd cv && lualatex -interaction=nonstopmode main_<company>_<role>.tex
 ```
 
 Expected output: `Output written on main_<company>_<role>.pdf (2 pages, ...)`. Any page count other than 2 is a failure that must be fixed before presenting to the user.
+
+### Missing LaTeX packages
+
+A compile that stops on ``! LaTeX Error: File `<file>' not found`` (a `.sty` or `.cls`) usually means the TeX install lacks a package, which is normal on minimal installs such as TinyTeX. Install it rather than rewriting the source to avoid it: `tlmgr search --global --file /<file>` (the exact file name from the error) names the package that ships it, then `tlmgr install <package>` and re-compile. MiKTeX has no `tlmgr`: with `[MPM]AutoInstall=1` (see SETUP.md) it installs the package during the compile; otherwise `mpm --install=<package>`. Exceptions:
+
+- **The search succeeds but finds nothing:** the name is misspelled, or the file is local (a class or style that belongs next to the source, such as `cover.cls`). Fix the source or the working directory.
+- **The install cannot run:** `tlmgr` is disabled (distribution-packaged TeX Live), cannot reach its repository, or needs root (BasicTeX/MacTeX, system-wide TeX Live), or `mpm` needs admin rights. Never run `sudo`. Tell the user the exact install command, or the distribution package that ships the file, and wait.
 
 ## Document Structure
 
@@ -150,7 +157,7 @@ Reorder and emphasize based on the role. Use bold category labels.
 
 List **5-7 key competencies** in bullet format, tailored to the specific job. For each competency, briefly explain how it adds value to the position.
 
-Use the posting's own core term in the matching bullet's bold label when it truthfully applies - ATS and skim-reading hiring managers match literally, and "MLOps" in a heading outperforms a paraphrase like "ML Deployment".
+Use the posting's own core term in the matching bullet's bold label when it truthfully applies and is a hard keyword (per `10-echo-traps.md`) - ATS and skim-reading hiring managers match literally, and "MLOps" in a heading outperforms a paraphrase like "ML Deployment".
 
 ### Education
 - Always include your highest degrees
@@ -243,7 +250,7 @@ Related trap: a bullet whose text begins with a literal `[` must be braced - `\i
 
 After writing the CV and before presenting to the user, always compile and visually inspect the PDF. Iterate until the layout is clean. Workflow:
 
-1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex`
+1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex` (a missing `.sty`/`.cls`: see **Missing LaTeX packages** above)
 2. Check the output page count: must be exactly 2
 3. Read the PDF via the Read tool and visually inspect both pages
 4. Check for **orphaned entries**: a `\cventry` title line must never sit alone at the bottom of page 1 with its bullets on page 2
@@ -286,7 +293,7 @@ What to check in the extraction:
 - **Contact details as literal text.** The stock template's fontawesome contact icons extract as glyph names (`MOBILE-ALT`, `Envelope`) - harmless noise, because the actual address and number are printed beside them. The failure mode is a contact detail carried *only* by an icon or a hyperlink (like the `LinkedIn` link text, whose URL is not in the text layer): invisible to an ATS. The email address must always appear as printed text.
 - **No garbled output.** `(cid:NNN)` markers or `�` characters mean a font is embedded without a Unicode mapping - an ATS sees the same garbage. This shows up with unusual fonts in custom templates, not with the stock moderncv setup under lualatex.
 - **Reading order.** The stock banking style is single-column, so extraction order matches visual order. Custom templates (via `/add-template`) with sidebars or multi-column layouts can interleave unrelated lines; if extraction order is scrambled, the user is trading ATS compatibility for looks and should be told.
-- **Keyword coverage.** Match the posting's required/preferred terms against the extracted text, in the posting's language. Prefer the posting's exact term over a synonym when it is truthfully applicable - ATS matching is often literal. Never add a keyword the profile does not support. `verify_pdf.py --contains` folds both sides for whitespace, Unicode normalization (NFC) and LaTeX's typographic substitutions before comparing - `'` reaches the text layer as U+2019 and `--` as U+2013, so `--contains "Master's degree"` and `--contains "2016-2024"` match what the template actually renders. The dumped `.txt` is never folded: it is the raw layer the ATS sees, which is why the date-range check below reads the dump, not `--contains`.
+- **Keyword coverage.** Match the posting's required/preferred terms against the extracted text, in the posting's language. Prefer the posting's exact term over a synonym when it is truthfully applicable (hard keywords only, per `10-echo-traps.md`) - ATS matching is often literal. Never add a keyword the profile does not support. `verify_pdf.py --contains` folds both sides for whitespace, Unicode normalization (NFC) and LaTeX's typographic substitutions before comparing - `'` reaches the text layer as U+2019 and `--` as U+2013, so `--contains "Master's degree"` and `--contains "2016-2024"` match what the template actually renders. The dumped `.txt` is never folded: it is the raw layer the ATS sees, which is why the date-range check below reads the dump, not `--contains`.
 - **Accents intact (pdflatex fallback).** Under pdflatex without T1 font encoding the text layer stores accented letters decomposed (`e` + combining grave instead of `è`); pypdf reads that as `Gen` `eve` with a stray spacing accent, and neither form matches a typed keyword. The stock template guards this with `\ifpdftex\usepackage[T1]{fontenc}\fi`; keep the line in tailored CVs and custom templates that may be compiled with pdflatex. It is a no-op under lualatex.
 
 ### Date fields must be ASCII ranges (confirmed ATS import failure)
